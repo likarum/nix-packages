@@ -1,0 +1,8 @@
+[SddmGreeterTheme]
+Name=hexa_retro
+Description=Reprise du splash Plymouth hexa_retro
+Author=likarum
+Type=sddm-theme
+Version=1.0
+License=GPL-3.0
+MainScript=Main.qml

@@ -1,0 +1,88 @@
+name: Update
+on:
+  schedule:
+    - cron: '17 5 * * *'
+  workflow_dispatch:
+    inputs:
+      package:
+        description: Package to update (inputs updates both nixpkgs pins)
+        type: choice
+        default: all
+        options: [all, claude-desktop, chatgpt-desktop, coroslink, inputs]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        package: [claude-desktop, chatgpt-desktop, coroslink, inputs]
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Select updates (nixpkgs weekly on Mondays)
+        id: select
+        env:
+          EVENT: ${{ github.event_name }}
+          REQUESTED: ${{ inputs.package }}
+          PACKAGE: ${{ matrix.package }}
+        run: |
+          if [[ "$EVENT" == workflow_dispatch ]]; then
+            [[ "$REQUESTED" == all || "$REQUESTED" == "$PACKAGE" ]] || exit 0
+          elif [[ "$PACKAGE" == inputs && "$(date -u +%u)" != 1 ]]; then
+            exit 0
+          fi
+          echo 'selected=true' >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        if: steps.select.outputs.selected == 'true'
+        with:
+          persist-credentials: false
+      - uses: cachix/install-nix-action@b85815f71a6de0ddee80b8a80a98d43f4bcc66c7 # v31
+        if: steps.select.outputs.selected == 'true'
+        with:
+          extra_nix_config: |
+            accept-flake-config = false
+      - name: Update pin
+        if: steps.select.outputs.selected == 'true'
+        id: update
+        env:
+          PACKAGE: ${{ matrix.package }}
+        run: |
+          if [[ "$PACKAGE" == inputs ]]; then
+            nix flake update nixpkgs nixpkgs-unstable
+          else
+            nix develop --command python3 scripts/update.py "$PACKAGE"
+          fi
+          if ! git diff --quiet; then
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
+      # Run checks HERE: PRs created with GITHUB_TOKEN may require approval
+      # before their pull_request workflow runs. Never rely on that trigger.
+      - name: Build and validate before proposing the update
+        if: steps.update.outputs.changed == 'true'
+        run: nix flake check --print-build-logs
+      - name: Open or refresh update PR
+        if: steps.update.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7
+        with:
+          token: ${{ github.token }}
+          branch: updates/${{ matrix.package }}
+          commit-message: 'chore(${{ matrix.package }}): update pin'
+          title: 'chore(${{ matrix.package }}): update pin'
+          body: |
+            Automated pin update. `nix flake check` passed in the updater run.
+            Review the diff and test desktop login/features before merging.
+            This PR does not deploy NixOS or modify any user configuration.
+          add-paths: |
+            pkgs/${{ matrix.package }}/sources.json
+            flake.lock
