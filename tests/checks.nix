@@ -45,6 +45,7 @@ in {
     theme=${sddm-theme-hexa-retro}/share/sddm/themes/hexa_retro
     test -s "$theme/Main.qml"
     test -s "$theme/metadata.desktop"
+    grep -qx 'QtVersion=6' "$theme/metadata.desktop"
     test "$(magick identify "$theme/hexa_retro.gif" | wc -l)" -eq 90
     touch $out
   '';
