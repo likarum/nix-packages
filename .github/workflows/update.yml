@@ -83,6 +83,4 @@ jobs:
             Automated pin update. `nix flake check` passed in the updater run.
             Review the diff and test desktop login/features before merging.
             This PR does not deploy NixOS or modify any user configuration.
-          add-paths: |
-            pkgs/${{ matrix.package }}/sources.json
-            flake.lock
+          add-paths: ${{ matrix.package == 'inputs' && 'flake.lock' || format('pkgs/{0}/sources.json', matrix.package) }}
