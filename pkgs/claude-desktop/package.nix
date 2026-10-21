@@ -32,6 +32,7 @@
   expat,
   glib,
   systemd,
+  pipewire,
 
   ### OpenGL dispatch (Chromium dlopens libEGL.so.1 at runtime)
   libglvnd,
@@ -139,6 +140,7 @@ let
       expat
       glib
       systemd
+      pipewire # claude-native-binding.node links libpipewire-0.3.so.0
 
       ### Bundled virtiofsd
       libseccomp
