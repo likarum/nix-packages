@@ -271,6 +271,11 @@ let
         git
         openssh
         procps
+        ### Socle manylinux pour les serveurs MCP Python lancés DANS le bwrap
+        ### (uv/pip) : leurs wheels embarquent tout sauf libz.so.1, attendue
+        ### du système. Le loader du FHS ignore NIX_LD*, donc nix-ld ne peut
+        ### pas la fournir ici (sans elle : « Server disconnected » côté app).
+        zlib
       ];
 
     extraBuildCommands = ''
