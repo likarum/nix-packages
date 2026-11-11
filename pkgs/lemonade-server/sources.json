@@ -1,0 +1,15 @@
+{
+  "version": "2026.44.1",
+  "sources": {
+    "x86_64-linux": {
+      "url": "https://github.com/lemonade-sdk/lemonade/releases/download/v2026.44.1/lemonade-embeddable-2026.44.1-ubuntu-x64.tar.gz",
+      "hash": "sha256-FvFWp/RKMrIJNudgGbJNvMx7guYKOs6hLoYU2ovKjpA="
+    }
+  },
+  "resources": {
+    "x86_64-linux": {
+      "url": "https://github.com/lemonade-sdk/lemonade/releases/download/v2026.44.1/lemonade-server_2026.44.1-debian13_amd64.deb",
+      "hash": "sha256-3etk0Wc889eiKMU1OxreP3yy8s8RVvQUSA9OCKPsWm8="
+    }
+  }
+}
