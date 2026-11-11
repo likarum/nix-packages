@@ -54,13 +54,13 @@ in {
   # et le greffon XRT est placé là où XRT le cherche (<racine>/lib/x86_64-linux-gnu).
   fastflowlm-smoke = pkgs.runCommand "fastflowlm-smoke" { nativeBuildInputs = [ pkgs.glibc.bin ]; } ''
     export HOME=$TMPDIR
-    set -x
-    grep -m1 'model name' /proc/cpuinfo; grep -m1 -o 'avx512[a-z_]*' /proc/cpuinfo || true
-    ${fastflowlm}/bin/flm --version; echo "rc=$?"
+    # Pas de grep -q en bout de tube : SIGPIPE + pipefail rendrait le test instable.
     root=${fastflowlm}/lib/fastflowlm
     test "$(flm=${fastflowlm}/bin/flm; $flm --version)" = "FLM v${fastflowlm.version}"
-    ${fastflowlm}/bin/flm --help | grep -q 'validate'
-    ${fastflowlm}/bin/flm list | grep -q 'd3:edge'
+    ${fastflowlm}/bin/flm --help > help.txt
+    grep -q 'validate' help.txt
+    ${fastflowlm}/bin/flm list > list.txt
+    grep -q 'd3:edge' list.txt
     test -s ${fastflowlm}/share/flm/xclbins/Gemma3-1B-NPU2/layer.xclbin
     test -e $root/lib/x86_64-linux-gnu/libxrt_driver_xdna.so.2
     # flm-real dépend de tous les moteurs NPU : un seul ldd couvre la fermeture.
@@ -72,7 +72,8 @@ in {
   lemonade-smoke = pkgs.runCommand "lemonade-smoke" { nativeBuildInputs = [ pkgs.curl pkgs.glibc.bin ]; } ''
     export HOME=$TMPDIR
     test "$(${lemonade-server}/bin/lemonade --version)" = "lemonade version ${lemonade-server.version}"
-    ${lemonade-server}/bin/lemonade --help | grep -q 'Lemonade CLI'
+    ${lemonade-server}/bin/lemonade --help > help.txt
+    grep -q 'Lemonade CLI' help.txt
     for f in ${lemonade-server}/lib/lemonade-server/lemond ${lemonade-server}/lib/lemonade-server/lemonade; do
       if ldd "$f" | grep -q 'not found'; then ldd "$f"; exit 1; fi
     done
