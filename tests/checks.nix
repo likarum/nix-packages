@@ -54,6 +54,9 @@ in {
   # et le greffon XRT est placé là où XRT le cherche (<racine>/lib/x86_64-linux-gnu).
   fastflowlm-smoke = pkgs.runCommand "fastflowlm-smoke" { nativeBuildInputs = [ pkgs.glibc.bin ]; } ''
     export HOME=$TMPDIR
+    set -x
+    grep -m1 'model name' /proc/cpuinfo; grep -m1 -o 'avx512[a-z_]*' /proc/cpuinfo || true
+    ${fastflowlm}/bin/flm --version; echo "rc=$?"
     root=${fastflowlm}/lib/fastflowlm
     test "$(flm=${fastflowlm}/bin/flm; $flm --version)" = "FLM v${fastflowlm.version}"
     ${fastflowlm}/bin/flm --help | grep -q 'validate'
