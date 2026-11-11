@@ -1,8 +1,9 @@
 { pkgs }:
 let
-  inherit (pkgs) lib chatgpt-desktop claude-desktop coroslink claude-code-libsecret sddm-theme-hexa-retro;
+  inherit (pkgs) lib chatgpt-desktop claude-desktop coroslink claude-code-libsecret sddm-theme-hexa-retro fastflowlm lemonade-server;
 in {
-  inherit chatgpt-desktop claude-desktop coroslink claude-code-libsecret sddm-theme-hexa-retro;
+  inherit chatgpt-desktop claude-desktop coroslink claude-code-libsecret sddm-theme-hexa-retro
+    fastflowlm lemonade-server;
 
   update-validation = pkgs.runCommand "update-validation" { nativeBuildInputs = [ pkgs.python3 ]; } ''
     export PYTHONDONTWRITEBYTECODE=1
@@ -47,6 +48,40 @@ in {
     test -s "$theme/metadata.desktop"
     grep -qx 'QtVersion=6' "$theme/metadata.desktop"
     test "$(magick identify "$theme/hexa_retro.gif" | wc -l)" -eq 90
+    touch $out
+  '';
+  # Sans NPU ni réseau : le binaire démarre, toutes les bibliothèques se résolvent
+  # et le greffon XRT est placé là où XRT le cherche (<racine>/lib/x86_64-linux-gnu).
+  fastflowlm-smoke = pkgs.runCommand "fastflowlm-smoke" { nativeBuildInputs = [ pkgs.glibc.bin ]; } ''
+    export HOME=$TMPDIR
+    root=${fastflowlm}/lib/fastflowlm
+    test "$(flm=${fastflowlm}/bin/flm; $flm --version)" = "FLM v${fastflowlm.version}"
+    ${fastflowlm}/bin/flm --help | grep -q 'validate'
+    ${fastflowlm}/bin/flm list | grep -q 'd3:edge'
+    test -s ${fastflowlm}/share/flm/xclbins/Gemma3-1B-NPU2/layer.xclbin
+    test -e $root/lib/x86_64-linux-gnu/libxrt_driver_xdna.so.2
+    # flm-real dépend de tous les moteurs NPU : un seul ldd couvre la fermeture.
+    for f in $root/flm-real $root/lib/x86_64-linux-gnu/libxrt_driver_xdna.so.2; do
+      if ldd "$f" | grep -q 'not found'; then ldd "$f"; echo "bibliothèque manquante pour $f"; exit 1; fi
+    done
+    touch $out
+  '';
+  lemonade-smoke = pkgs.runCommand "lemonade-smoke" { nativeBuildInputs = [ pkgs.curl pkgs.glibc.bin ]; } ''
+    export HOME=$TMPDIR
+    test "$(${lemonade-server}/bin/lemonade --version)" = "lemonade version ${lemonade-server.version}"
+    ${lemonade-server}/bin/lemonade --help | grep -q 'Lemonade CLI'
+    for f in ${lemonade-server}/lib/lemonade-server/lemond ${lemonade-server}/lib/lemonade-server/lemonade; do
+      if ldd "$f" | grep -q 'not found'; then ldd "$f"; exit 1; fi
+    done
+    # Serveur local seul (port non standard, boucle locale du bac à sable).
+    ${lemonade-server}/bin/lemond --port 13399 > lemond.log 2>&1 &
+    pid=$!
+    for _ in $(seq 1 30); do
+      curl -sf http://127.0.0.1:13399/api/v1/health > health.json && break
+      sleep 1
+    done
+    kill $pid || true
+    grep -q '"status":"ok"' health.json || { cat lemond.log; exit 1; }
     touch $out
   '';
 }

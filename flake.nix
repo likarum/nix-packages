@@ -20,6 +20,8 @@
           claude-code = (prev.unstable or unstable).claude-code;
         };
         sddm-theme-hexa-retro = final.callPackage ./pkgs/sddm-theme-hexa-retro/package.nix { };
+        fastflowlm = final.callPackage ./pkgs/fastflowlm/package.nix { };
+        lemonade-server = final.callPackage ./pkgs/lemonade-server/package.nix { };
       };
       pkgs = import nixpkgs {
         inherit system;
@@ -30,7 +32,7 @@
       overlays.default = overlay;
       packages.${system} = {
         inherit (pkgs) claude-desktop chatgpt-desktop coroslink
-          claude-code-libsecret sddm-theme-hexa-retro;
+          claude-code-libsecret sddm-theme-hexa-retro fastflowlm lemonade-server;
       };
       apps.${system} = builtins.listToAttrs (map (name: {
         inherit name;
@@ -39,7 +41,7 @@
           program = nixpkgs.lib.getExe self.packages.${system}.${name};
           meta.description = "Launch ${name}";
         };
-      }) [ "claude-desktop" "chatgpt-desktop" "coroslink" "claude-code-libsecret" ]);
+      }) [ "claude-desktop" "chatgpt-desktop" "coroslink" "claude-code-libsecret" "fastflowlm" "lemonade-server" ]);
       checks.${system} = import ./tests/checks.nix { inherit pkgs; };
       devShells.${system}.default = pkgs.mkShell {
         packages = with pkgs; [ python3 curl gnupg dpkg jq git shellcheck actionlint nixfmt ];
