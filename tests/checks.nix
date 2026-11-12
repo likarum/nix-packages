@@ -69,6 +69,17 @@ in {
     done
     touch $out
   '';
+  lemonade-defaults = pkgs.runCommand "lemonade-defaults" { nativeBuildInputs = [ pkgs.jq ]; } ''
+    d=${lemonade-server}/lib/lemonade-server
+    test "$(jq -r .flm.prefer_system $d/defaults-nixos.json)" = true
+    # L'amont reste intact et seule cette clé diffère.
+    test "$(jq -r .flm.prefer_system $d/resources/defaults.json)" = false
+    test "$(jq -S 'del(.flm.prefer_system)' $d/defaults-nixos.json)" = "$(jq -S 'del(.flm.prefer_system)' $d/resources/defaults.json)"
+    # Pas de grep -q en bout de tube : SIGPIPE + pipefail rendrait le test instable.
+    grep -c 'LEMONADE_DEFAULTS_PATH' ${lemonade-server}/bin/lemond > count.txt
+    test "$(cat count.txt)" -ge 1
+    touch $out
+  '';
   lemonade-smoke = pkgs.runCommand "lemonade-smoke" { nativeBuildInputs = [ pkgs.curl pkgs.glibc.bin ]; } ''
     export HOME=$TMPDIR
     test "$(${lemonade-server}/bin/lemonade --version)" = "lemonade version ${lemonade-server.version}"

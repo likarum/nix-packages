@@ -46,7 +46,10 @@
   release, ses binaires ne sont pas utilisés. Choix de la 2026.44.1 : la 2026.45.3
   exige glibc 2.43, absente de NixOS 26.05 (glibc 2.42) ; les binaires du `.deb`
   exigeraient des bibliothèques Debian absentes de nixpkgs (cpp-httplib 0.41,
-  libwebsockets 19).
+  libwebsockets 19). Adaptation locale : copie de `defaults.json` avec seul
+  `flm.prefer_system = true` (jq), désignée par `LEMONADE_DEFAULTS_PATH` dans le
+  wrapper de `lemond`, pour que Lemonade utilise le `flm` du paquet au lieu de
+  télécharger son propre FLM.
 - Étudié sans reprise de code : https://github.com/noamsto/nix-amd-ai (MIT,
   commit `e11eddc66283c8b99a29b2ecfc719d6e7e50f791`), qui compile XRT, le greffon,
   FastFlowLM et Lemonade depuis les sources. Aucune recette n'en a été copiée,

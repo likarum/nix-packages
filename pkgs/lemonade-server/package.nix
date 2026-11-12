@@ -4,6 +4,7 @@
 , autoPatchelfHook
 , makeWrapper
 , dpkg
+, jq
 , openssl
 , zlib
 , zstd
@@ -24,7 +25,7 @@ stdenv.mkDerivation {
   inherit (sources) version;
   inherit src;
 
-  nativeBuildInputs = [ autoPatchelfHook makeWrapper dpkg ];
+  nativeBuildInputs = [ autoPatchelfHook makeWrapper dpkg jq ];
   buildInputs = [
     openssl
     zlib
@@ -51,14 +52,21 @@ stdenv.mkDerivation {
     # (/usr/share/fonts) : liens pendants, retirés (seul le rendu des formules
     # de l'interface web en dépend).
     find $root/resources -xtype l -delete
+    # Copie de defaults.json où seul flm.prefer_system passe à true : sinon
+    # Lemonade ignore le `flm` du PATH et voudrait télécharger son propre binaire
+    # FLM, inutilisable sur NixOS. Le fichier amont reste intact ; la clé existe
+    # aussi dans d'autres sections, d'où jq plutôt que sed.
+    jq '.flm.prefer_system = true' $root/resources/defaults.json > $root/defaults-nixos.json
     install -Dm644 LICENSE $out/share/doc/lemonade-server/LICENSE
     runHook postInstall
   '';
 
   # FastFlowLM est mis dans le PATH de lemond : le serveur y lance `flm`
   # pour les modèles NPU, sans installation automatique en ligne.
+  # LEMONADE_DEFAULTS_PATH (surchargeable) pointe sur la copie à flm.prefer_system.
   postFixup = ''
     makeWrapper $out/lib/lemonade-server/lemond $out/bin/lemond \
+      --set-default LEMONADE_DEFAULTS_PATH $out/lib/lemonade-server/defaults-nixos.json \
       --prefix PATH : ${lib.makeBinPath [ fastflowlm ]}
     makeWrapper $out/lib/lemonade-server/lemonade $out/bin/lemonade \
       --prefix PATH : ${lib.makeBinPath [ fastflowlm ]}

@@ -117,6 +117,21 @@ vidéo/audio de `flm` non couverte). Une régression amont connue
 (ROCm/FastFlowLM#655) fait échouer le chargement d'un modèle quand `--asr 1` et
 `--embed 1` sont activés ensemble : n'en utiliser qu'un à la fois.
 
+Adaptation NixOS : le wrapper de `lemond` pose `LEMONADE_DEFAULTS_PATH` (surchargeable)
+vers une copie de `defaults.json` où seul `flm.prefer_system` vaut `true`. Sans
+cela, Lemonade ignore le `flm` du `PATH` et tente de télécharger son propre FLM,
+inutilisable sur NixOS. Le fichier amont n'est pas modifié.
+
+Comportements de `lemond` à connaître :
+
+- une balise UDP de découverte est active par défaut (`--no-broadcast` la coupe) ;
+- un serveur WebSocket supplémentaire écoute sur le port 9000, en boucle locale ;
+- avec `LEMONADE_API_KEY`, même `/api/v1/health` exige la clé.
+
+Essai réel (Ryzen AI série 300, XDNA 2, noyau 7.3.1, NixOS 26.05) : `flm validate`
+passe, un modèle de discussion et Whisper tournent sur le NPU, y compris à travers
+Lemonade avec l'adaptation ci-dessus.
+
 Limites : ces paquets sont construits et testés sans NPU (démarrage, aide, liste
 des modèles, serveur sans modèle). `flm validate`, le chargement d'un modèle et
 l'inférence ne sont validés que sur une machine équipée ; un build vert ne les
