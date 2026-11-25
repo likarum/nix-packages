@@ -21,10 +21,22 @@ ARCHES = {"x86_64-linux": "amd64", "aarch64-linux": "arm64"}
 PACKAGES = ("claude-desktop", "chatgpt-desktop", "coroslink")
 
 
-def fetch(url):
-    if urllib.parse.urlsplit(url).scheme != "https":
+def make_request(url):
+    parts = urllib.parse.urlsplit(url)
+    if parts.scheme != "https":
         raise ValueError("only HTTPS sources are allowed")
     request = urllib.request.Request(url, headers={"User-Agent": "likarum-nix-packages"})
+    # Anonymous GitHub API calls share a 60/h quota per runner IP and fail at
+    # random in CI. Send the workflow token to the API host only, and never on
+    # redirects (unredirected header), so release downloads stay anonymous.
+    token = os.environ.get("GITHUB_TOKEN")
+    if token and parts.hostname == "api.github.com":
+        request.add_unredirected_header("Authorization", f"Bearer {token}")
+    return request
+
+
+def fetch(url):
+    request = make_request(url)
     with urllib.request.urlopen(request, timeout=120) as response:
         if urllib.parse.urlsplit(response.url).scheme != "https":
             raise ValueError("refusing non-HTTPS redirect")
