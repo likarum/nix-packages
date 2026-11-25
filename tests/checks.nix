@@ -56,11 +56,19 @@ in {
     export HOME=$TMPDIR
     # Pas de grep -q en bout de tube : SIGPIPE + pipefail rendrait le test instable.
     root=${fastflowlm}/lib/fastflowlm
-    test "$(flm=${fastflowlm}/bin/flm; $flm --version)" = "FLM v${fastflowlm.version}"
-    ${fastflowlm}/bin/flm --help > help.txt
-    grep -q 'validate' help.txt
-    ${fastflowlm}/bin/flm list > list.txt
-    grep -q 'd3:edge' list.txt
+    # flm-real exige AVX-512 (F/BW/DQ/VL), présent sur les Ryzen AI (Zen 5) mais
+    # pas sur tous les runners CI (AMD EPYC 7763, Zen 3) : sans lui, SIGILL.
+    # Les vérifications statiques ci-dessous tournent dans tous les cas.
+    if grep -qw avx512f /proc/cpuinfo && grep -qw avx512bw /proc/cpuinfo \
+      && grep -qw avx512dq /proc/cpuinfo && grep -qw avx512vl /proc/cpuinfo; then
+      test "$(${fastflowlm}/bin/flm --version)" = "FLM v${fastflowlm.version}"
+      ${fastflowlm}/bin/flm --help > help.txt
+      grep -q 'validate' help.txt
+      ${fastflowlm}/bin/flm list > list.txt
+      grep -q 'd3:edge' list.txt
+    else
+      echo "CPU sans AVX-512 : exécution de flm ignorée, vérifications statiques seules"
+    fi
     test -s ${fastflowlm}/share/flm/xclbins/Gemma3-1B-NPU2/layer.xclbin
     test -e $root/lib/x86_64-linux-gnu/libxrt_driver_xdna.so.2
     # flm-real dépend de tous les moteurs NPU : un seul ldd couvre la fermeture.
