@@ -15,9 +15,8 @@ appimageTools.wrapType2 {
     # Preserve upstream's existing launch flags, including --no-sandbox.
     substituteInPlace $out/share/applications/${pname}.desktop \
       --replace-fail 'Exec=AppRun' 'Exec=${pname}'
-    install -Dm444 \
-      ${contents}/usr/share/icons/hicolor/1024x1024/apps/${pname}.png \
-      $out/share/icons/hicolor/1024x1024/apps/${pname}.png
+    # Copy every icon size upstream ships; the set changes between releases.
+    cp -r --no-preserve=mode ${contents}/usr/share/icons $out/share/icons
   '';
   passthru.updateScript = [ "python3" "scripts/update.py" "coroslink" ];
   meta = {
