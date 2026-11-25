@@ -1,9 +1,9 @@
 {
-  "version": "0.1.49",
+  "version": "0.1.83",
   "sources": {
     "x86_64-linux": {
-      "url": "https://github.com/JunAkerBuilds/CorosLink/releases/download/v0.1.49/CorosLink-0.1.49.AppImage",
-      "hash": "sha256-DxvbpiwOnmk7sa7OjAMUBeqcZTASYEj2grVFCxGl5YE="
+      "url": "https://github.com/JunAkerBuilds/CorosLink/releases/download/v0.1.83/CorosLink-0.1.83.AppImage",
+      "hash": "sha256-ypLlx23nUmr+ChBIRZKIK+2TT7/lbLPteHip+q4E31U="
     }
   }
 }
