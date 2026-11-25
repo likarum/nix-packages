@@ -57,6 +57,8 @@ jobs:
         id: update
         env:
           PACKAGE: ${{ matrix.package }}
+          # Authenticated GitHub API quota; scripts/update.py sends it to api.github.com only.
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           if [[ "$PACKAGE" == inputs ]]; then
             nix flake update nixpkgs nixpkgs-unstable

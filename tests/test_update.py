@@ -1,7 +1,9 @@
 import hashlib
 import importlib.util
+import os
 from pathlib import Path
 import unittest
+import unittest.mock
 
 spec = importlib.util.spec_from_file_location("update", Path(__file__).resolve().parents[1] / "scripts/update.py")
 u = importlib.util.module_from_spec(spec)
@@ -40,6 +42,19 @@ class SourceValidation(unittest.TestCase):
                      "pool/main/chatgpt_1.2.3_amd64.deb?x", "pool/main/other.deb"]:
             with self.assertRaises(ValueError):
                 u.deb_source(u.OPENAI_REPO, "chatgpt", {"Version": "1.2.3", "Filename": path, "SHA256": "a" * 64}, "amd64")
+
+    def test_github_token_only_reaches_the_api_host(self):
+        with unittest.mock.patch.dict(os.environ, {"GITHUB_TOKEN": "t"}):
+            api = u.make_request("https://api.github.com/repos/o/r/releases/latest")
+            self.assertEqual(api.unredirected_hdrs.get("Authorization"), "Bearer t")
+            self.assertNotIn("Authorization", api.headers)
+            for url in ["https://github.com/o/r/releases/download/v1/a", u.OPENAI_REPO, "https://api.github.com.evil.test/"]:
+                req = u.make_request(url)
+                self.assertFalse(req.has_header("Authorization"), url)
+        with unittest.mock.patch.dict(os.environ, {}, clear=True):
+            self.assertFalse(u.make_request("https://api.github.com/x").has_header("Authorization"))
+        with self.assertRaises(ValueError):
+            u.make_request("http://api.github.com/x")
 
 
 if __name__ == "__main__":
