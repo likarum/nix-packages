@@ -11,7 +11,12 @@ in {
     touch $out
   '';
   workflows = pkgs.runCommand "workflow-validation" { nativeBuildInputs = [ pkgs.actionlint ]; } ''
-    actionlint ${../.github/workflows/check.yml} ${../.github/workflows/update.yml}
+    actionlint ${../.github/workflows/check.yml} ${../.github/workflows/update.yml} \
+      ${../.github/workflows/automerge.yml}
+    touch $out
+  '';
+  scripts = pkgs.runCommand "script-validation" { nativeBuildInputs = [ pkgs.shellcheck ]; } ''
+    shellcheck --shell=bash --external-sources ${../scripts/pin-slug.sh} ${../scripts/automerge.sh}
     touch $out
   '';
   chatgpt-store-copies = pkgs.runCommand "chatgpt-store-copies" { nativeBuildInputs = [ pkgs.nodejs ]; } ''
