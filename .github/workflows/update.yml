@@ -68,21 +68,50 @@ jobs:
           if ! git diff --quiet; then
             echo 'changed=true' >> "$GITHUB_OUTPUT"
           fi
+      - name: Name the branch after the proposed release
+        if: steps.update.outputs.changed == 'true'
+        id: pin
+        env:
+          PACKAGE: ${{ matrix.package }}
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          slug="$(./scripts/pin-slug.sh "$PACKAGE")"
+          branch="updates/$PACKAGE/$slug"
+          echo "slug=$slug" >> "$GITHUB_OUTPUT"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          # One release, one branch, one pull request. A release that was
+          # already proposed and closed is never proposed again, so declining
+          # one sticks instead of coming back the next morning.
+          state="$(gh pr list --head "$branch" --state all --limit 1 --json state --jq '.[0].state // "NONE"')"
+          case "$state" in
+            NONE|OPEN) echo 'propose=true' >> "$GITHUB_OUTPUT" ;;
+            *) echo "::notice::$slug already had a $state pull request; not proposing it again" ;;
+          esac
       # Run checks HERE: PRs created with GITHUB_TOKEN may require approval
       # before their pull_request workflow runs. Never rely on that trigger.
       - name: Build and validate before proposing the update
-        if: steps.update.outputs.changed == 'true'
+        if: steps.pin.outputs.propose == 'true'
         run: nix flake check --print-build-logs
       - name: Open or refresh update PR
-        if: steps.update.outputs.changed == 'true'
+        if: steps.pin.outputs.propose == 'true'
         uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7
         with:
           token: ${{ github.token }}
-          branch: updates/${{ matrix.package }}
-          commit-message: 'chore(${{ matrix.package }}): update pin'
-          title: 'chore(${{ matrix.package }}): update pin'
+          branch: ${{ steps.pin.outputs.branch }}
+          commit-message: 'chore(${{ matrix.package }}): update pin to ${{ steps.pin.outputs.slug }}'
+          title: 'chore(${{ matrix.package }}): update pin to ${{ steps.pin.outputs.slug }}'
           body: |
-            Automated pin update. `nix flake check` passed in the updater run.
-            Review the diff and test desktop login/features before merging.
+            Automated pin update to `${{ steps.pin.outputs.slug }}`.
+            `nix flake check` passed in the updater run.
+
+            **The Auto-merge workflow merges this 7 days after it was opened**,
+            after replaying the pin on top of `main` and building it again. A
+            newer release does not touch this pull request: it opens its own.
+
+            To stop that, add the `hold` label, or close this pull request —
+            a closed release is never proposed again.
+
+            A green build does not validate login, the keyring or the NPU.
             This PR does not deploy NixOS or modify any user configuration.
           add-paths: ${{ matrix.package == 'inputs' && 'flake.lock' || format('pkgs/{0}/sources.json', matrix.package) }}

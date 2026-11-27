@@ -146,11 +146,43 @@ ne les couvre pas encore.
   Code et la base du thème.
 - À la demande : Actions → Update → Run workflow, avec sélection d'un paquet ou
   de tous les paquets (`all` inclut les inputs).
-- Une PR par cible, réutilisée tant qu'elle est ouverte. Aucun auto-merge.
+- Une PR par version : la branche est `updates/<paquet>/<version>` (pour les
+  inputs, les deux revs de lock abrégées). Une nouvelle version ouvre donc sa
+  propre PR au lieu de réécrire celle de la précédente.
 - Les versions et hashes sont les seuls changements automatiques des recettes.
   Un correctif qui ne s'applique plus doit être repris manuellement.
 - Les builds et tests sont exécutés avant ouverture de la PR. Un échec conserve
   `main` intact et apparaît dans Actions ; aucun pin cassé n'est fusionné.
+
+### Auto-merge après 7 jours
+
+Tous les jours à 07:41 UTC, le workflow Auto-merge fusionne les PR de mise à
+jour ouvertes depuis 7 jours ou plus. Le délai est l'âge de la PR ; il n'est
+jamais remis à zéro par une version plus récente, qui attend son propre délai
+dans sa propre PR. Les PR d'un même paquet sont traitées de la plus ancienne
+version à la plus récente.
+
+Avant chaque fusion, le job rejoue le pin sur le `main` courant — le diff
+remplace un seul fichier généré, donc aucun conflit n'est possible et la PR
+garde son identité, donc son délai — reconstruit avec `nix flake check`, puis
+fusionne en squash et supprime la branche. Ce build est nécessaire : les PR
+créées avec `GITHUB_TOKEN` ne déclenchent pas le workflow Check.
+
+Ne sont jamais fusionnées automatiquement : un brouillon, une PR portant le
+label `hold`, une PR ouverte par un humain ou hors de `updates/<paquet>/`, une
+PR qui modifie autre chose que son fichier de pin, et une PR dont le build
+échoue — elle reçoit un commentaire, reste ouverte, et le run passe au rouge.
+
+Fermer une PR de mise à jour refuse cette version définitivement : l'updater ne
+repropose jamais une version déjà fermée.
+
+Essai à blanc, sans rien fusionner : Actions → Auto-merge → Run workflow, avec
+`dry_run`.
+
+Ce que l'auto-merge ne garantit pas : `nix flake check` construit et lance les
+tests, il ne valide ni le login, ni le keyring, ni le NPU. Un pin fusionné
+automatiquement n'a donc pas été essayé de façon interactive. Pour un paquet qui
+doit l'être, poser le label `hold` sur sa PR et la fusionner à la main.
 
 Commandes locales :
 
@@ -168,8 +200,10 @@ and approve pull requests » dans Settings → Actions → General. Il n'y a auc
 secret PAT à créer. Les workflows de PR créées par ce token peuvent nécessiter
 une approbation GitHub ; les tests du workflow Update sont donc exécutés avant
 création de la PR, sans dépendre du déclenchement d'un second workflow.
-Les Actions sont figées à des commits, checkout ne persiste pas les credentials,
-et seul le job Update a les droits d'écriture nécessaires aux PR.
+Les Actions sont figées à des commits, et seuls les jobs Update et Auto-merge ont
+les droits d'écriture nécessaires aux PR. Le checkout ne persiste pas les
+credentials, sauf dans Auto-merge, qui doit pousser le pin rejoué sur la branche
+de la PR avant de la fusionner.
 
 Dans le dépôt NixOS, une fusion ici ne change rien au pin consommé :
 
